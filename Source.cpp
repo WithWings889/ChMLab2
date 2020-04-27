@@ -18,6 +18,36 @@ void showProblem(vector<vector<double>> a, vector<double> y, int n)
 		cout << " = " << y[i] << endl;
 	}
 }
+vector<vector<double>> matrixMultip(vector<vector<double>> &a, vector<vector<double>> &b )
+{
+	vector<vector<double>> c(a.size(), vector<double>(b[0].size()));
+	for (int i = 0; i < a.size(); i++)
+	{
+		//c[i] = vector<double>(a[0].size());
+		for (int j = 0; j < b[0].size(); j++)
+		{
+			c[i][j] = 0;
+			for (int k = 0; k < a[0].size(); k++)
+				c[i][j] += a[i][k] * b[k][j];
+		}
+	}
+	return c;
+}
+
+vector<double> matrixMultip(vector<vector<double>>& a, vector<double>& b)
+{
+	vector<double> c(a.size());
+	for (int i = 0; i < a.size(); i++)
+	{
+		c[i] = 0;
+		//c[i] = vector<double>(a[0].size());
+		for (int j = 0; j < b.size(); j++)
+		{
+			c[i] += a[i][j] * b[j];
+		}
+	}
+	return c;
+}
 void inicialization(vector<vector<double>> &a, vector<double> &y, int n)
 {
 
@@ -43,7 +73,7 @@ void inicialization(vector<vector<double>> &a, vector<double> &y, int n)
 	}
 }
 
-vector<double> Gauss(vector<vector<double>> a, vector<double> y, int n)
+vector<double> Gauss(vector<vector<double>> a, vector<double> y, int n, double &detA)
 {
 	double max;
 	vector<double> x(n);
@@ -74,6 +104,7 @@ vector<double> Gauss(vector<vector<double>> a, vector<double> y, int n)
 		{
 			cout << error;
 		}
+		detA *= max;
 		for (int j = 0; j < n; j++)
 		{
 			double temp = a[k][j];
@@ -84,19 +115,26 @@ vector<double> Gauss(vector<vector<double>> a, vector<double> y, int n)
 		y[k] = y[index];
 		y[index] = temp;
 
+		vector<vector<double>> m(n, vector<double>(n));
+		for (int i = 0; i < n; ++i)
+		{
+			m[i][i] = 1;
+		}
 
 		for (int i = k; i < n; i++)
 		{
-			double temp = a[i][k];
-			if (abs(temp) < eps) continue; 
-			for (int j = 0; j < n; j++)
-				a[i][j] = a[i][j] / temp;
-			y[i] = y[i] / temp;
-			if (i == k)  continue; 
-			for (int j = 0; j < n; j++)
-				a[i][j] = a[i][j] - a[k][j];
-			y[i] = y[i] - y[k];
+			if (abs(a[i][k]) < eps)
+				continue;
+
+			if (i == k)
+				m[i][k] = 1 / a[k][k];
+			else
+				m[i][k] = (-1) * a[i][k] / a[k][k];
 		}
+
+			a = matrixMultip(m, a);
+			y = matrixMultip(m, y);
+		
 		k++;
 	}
 	for (k = n - 1; k >= 0; k--)
@@ -143,12 +181,13 @@ double norm(vector<vector<double>> a, int n)
 double conditionNumber(vector<vector<double>> a, int n)
 {
 	//Обернена
+	double detA = 1;
 	vector<vector<double>> b;
 	vector<double> e(n);
 	for (int i = 0; i < n; ++i)
 	{
 		e[i] = 1;
-		b.push_back(Gauss(a, e, n));
+		b.push_back(Gauss(a, e, n, detA));
 		e[i] = 0;
 	}
 	transponation(b, n);
@@ -162,14 +201,14 @@ double findQ(vector<vector<double>> a, int n)
 	for (int i = 1; i < n; ++i)
 	{
 		max += abs(a[0][i]);
-		max /= abs(a[i][i]);
 	}
-	for (int j = 0; j < n; ++j)
+	max /= abs(a[0][0]);
+	for (int j = 1; j < n; ++j)
 	{
-		for (int i = 1; i < n; ++i)
+		for (int i = 0; i < n; ++i)
 		{
 			if (i == j) continue;
-			sum += abs(a[i][j]);
+			sum += abs(a[j][i]);
 		}
 		sum /= abs(a[j][j]);
 		if (max < sum)
@@ -245,33 +284,61 @@ vector<double> Yakobi(vector<vector<double>> a, vector<double> y, double e, int 
 
 	void showAnsGauss(vector<vector<double>> a, vector<double> y, int n)
 	{
+		double detA = 1;
 		vector<double> x;
-		x = Gauss(a, y, n);
+		x = Gauss(a, y, n, detA);
 		cout << "-----------------Gauss--------------------\n";
 		for (int i = 0; i < n; i++)
 			cout << "x[" << i << "]=" << x[i] << endl;
 		cout << "cond(A) is " << conditionNumber(a, n) << endl;
+		cout << "det A is " << detA << endl;
 		cout << "------------------------------------------\n\n";
+	}
+	bool YakobiIsAvailable(vector<vector<double>> a)
+	{
+		double sum = 0;
+		for (int i = 0; i < a.size(); ++i)
+		{
+			for (int j = 0; j < a.size(); ++j)
+			{
+				if (j == i)
+					continue;
+				else
+				{
+					sum += a[j][i];
+				}
+			}
+			if (a[i][i] < sum)
+				return false;
+			sum = 0;
+		}
+		return true;
 	}
 	void showAnsYakobi(vector<vector<double>> a, vector<double> y, int n, double e)
 	{
 		vector<double> x;
 		vector<double> x0(n);
 		int apostarior = 0;
-		x = Yakobi(a, y, e, n, apostarior);
-		cout << "-----------------Yakobi--------------------\n";
-		for (int i = 0; i < n; i++)
-			cout << "x[" << i << "]=" << x[i] << endl;
-		cout << "Apostarior is " << apostarior << endl;;
-		cout << "Aprior is " << apriorYakobi(a, y, n, x0, e) << endl;
-		cout << "--------------------------------------------\n";
+		if (YakobiIsAvailable(a))
+		{
+			x = Yakobi(a, y, e, n, apostarior);
+			cout << "-----------------Yakobi--------------------\n";
+			for (int i = 0; i < n; i++)
+				cout << "x[" << i << "]=" << x[i] << endl;
+			cout << "Apostarior is " << apostarior << endl;;
+			cout << "Aprior is " << apriorYakobi(a, y, n, x0, e) << endl;
+			cout << "q = " << findQ(a, n) << endl;
+			cout << "--------------------------------------------\n";
+		}
+		else
+			cout << "Yakobi method is not available" << endl;
 		cin.get(); cin.get();
 	}
 
 	int main()
 	{
 		int n;
-		double e = 1e-6;
+		double e = 1e-2;
 		system("chcp 1251");
 		system("cls");
 		cout << "Ведіть кількість рівнянь: ";
